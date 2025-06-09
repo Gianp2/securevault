@@ -1,253 +1,204 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Generador de Contraseñas Seguras</title>
-  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-6">
   <div id="root"></div>
-  <script type="text/babel">
-    function PasswordGenerator() {
-      const [password, setPassword] = React.useState('');
-      const [length, setLength] = React.useState(12);
-      const [useUppercase, setUseUppercase] = React.useState(true);
-      const [useLowercase, setUseLowercase] = React.useState(true);
-      const [useNumbers, setUseNumbers] = React.useState(true);
-      const [useSymbols, setUseSymbols] = React.useState(true);
-      const [purpose, setPurpose] = React.useState('');
-      const [savedPasswords, setSavedPasswords] = React.useState([]);
-      const [passwordStrength, setPasswordStrength] = React.useState('');
-      const [showPasswords, setShowPasswords] = React.useState({});
 
-      // Function to evaluate password strength
-      const evaluatePasswordStrength = (pwd) => {
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function PasswordGenerator() {
+      const [generatedPassword, setGeneratedPassword] = useState('');
+      const [passwordLength, setPasswordLength] = useState(12);
+      const [includeUppercase, setIncludeUppercase] = useState(true);
+      const [includeLowercase, setIncludeLowercase] = useState(true);
+      const [includeNumbers, setIncludeNumbers] = useState(true);
+      const [includeSymbols, setIncludeSymbols] = useState(true);
+      const [usageNote, setUsageNote] = useState('');
+      const [savedList, setSavedList] = useState([]);
+      const [strength, setStrength] = useState('');
+      const [visibilityMap, setVisibilityMap] = useState({});
+
+      const generatePassword = () => {
+        let charset = '';
+        if (includeUppercase) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        if (includeLowercase) charset += 'abcdefghijklmnopqrstuvwxyz';
+        if (includeNumbers) charset += '0123456789';
+        if (includeSymbols) charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+        if (!charset) {
+          alert('Selecciona al menos una opción de caracteres.');
+          return;
+        }
+
+        const pwd = Array.from({ length: passwordLength }, () =>
+          charset[Math.floor(Math.random() * charset.length)]
+        ).join('');
+
+        setGeneratedPassword(pwd);
+        setStrength(evaluateStrength(pwd));
+      };
+
+      const evaluateStrength = (pwd) => {
         let score = 0;
-        if (pwd.length > 8) score += 1;
-        if (pwd.length > 12) score += 1;
-        if (/[A-Z]/.test(pwd)) score += 1;
-        if (/[a-z]/.test(pwd)) score += 1;
-        if (/[0-9]/.test(pwd)) score += 1;
-        if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+        if (pwd.length >= 8) score++;
+        if (pwd.length >= 12) score++;
+        if (/[A-Z]/.test(pwd)) score++;
+        if (/[a-z]/.test(pwd)) score++;
+        if (/[0-9]/.test(pwd)) score++;
+        if (/[^A-Za-z0-9]/.test(pwd)) score++;
 
         if (score <= 2) return 'Débil';
         if (score <= 4) return 'Media';
         return 'Fuerte';
       };
 
-      // Function to generate password
-      const generatePassword = () => {
-        let charset = '';
-        let newPassword = '';
+      const handleCopy = () => {
+        navigator.clipboard.writeText(generatedPassword);
+        alert('Contraseña copiada');
+      };
 
-        if (useUppercase) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        if (useLowercase) charset += 'abcdefghijklmnopqrstuvwxyz';
-        if (useNumbers) charset += '0123456789';
-        if (useSymbols) charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
-
-        if (charset === '') {
-          alert('Por favor, selecciona al menos una opción.');
+      const handleSave = () => {
+        if (!generatedPassword || !usageNote.trim()) {
+          alert('Genera una contraseña e indica su uso.');
           return;
         }
 
-        for (let i = 0; i < length; i++) {
-          const randomIndex = Math.floor(Math.random() * charset.length);
-          newPassword += charset[randomIndex];
-        }
-
-        setPassword(newPassword);
-        setPasswordStrength(evaluatePasswordStrength(newPassword));
+        setSavedList((prev) => [
+          ...prev,
+          { id: Date.now(), password: generatedPassword, note: usageNote }
+        ]);
+        setGeneratedPassword('');
+        setUsageNote('');
+        setStrength('');
+        generatePassword();
       };
 
-      // Generate password on component mount
-      React.useEffect(() => {
+      const deleteOne = (id) => {
+        setSavedList(savedList.filter((item) => item.id !== id));
+      };
+
+      const clearAll = () => {
+        if (savedList.length === 0) return;
+        if (confirm('¿Eliminar todas las contraseñas guardadas?')) {
+          setSavedList([]);
+          setVisibilityMap({});
+        }
+      };
+
+      const toggleVisibility = (id) => {
+        setVisibilityMap((prev) => ({ ...prev, [id]: !prev[id] }));
+      };
+
+      useEffect(() => {
         generatePassword();
       }, []);
 
-      // Function to copy password to clipboard
-      const copyToClipboard = () => {
-        navigator.clipboard.writeText(password);
-        alert('¡Contraseña copiada al portapapeles!');
-      };
-
-      // Function to save password
-      const savePassword = () => {
-        if (!password || !purpose) {
-          alert('Por favor, genera una contraseña y especifica su uso.');
-          return;
-        }
-        setSavedPasswords([...savedPasswords, { id: Date.now(), password, purpose }]);
-        setPassword('');
-        setPurpose('');
-        setPasswordStrength('');
-        generatePassword(); // Generate new password after saving
-      };
-
-      // Function to delete a single password
-      const deletePassword = (id) => {
-        setSavedPasswords(savedPasswords.filter((item) => item.id !== id));
-      };
-
-      // Function to clear all saved passwords
-      const clearAllPasswords = () => {
-        if (savedPasswords.length === 0) return;
-        if (window.confirm('¿Estás seguro de que quieres eliminar todas las contraseñas guardadas?')) {
-          setSavedPasswords([]);
-          setShowPasswords({});
-        }
-      };
-
-      // Function to toggle password visibility
-      const togglePasswordVisibility = (id) => {
-        setShowPasswords((prev) => ({ ...prev, [id]: !prev[id] }));
-      };
-
       return (
-        <div className="bg-white p-6 rounded-2xl shadow-xl max-w-lg w-full transform transition-all hover:shadow-2xl">
-          <h1 className="text-3xl font-bold text-center mb-6 text-indigo-600">Generador de Contraseñas</h1>
+        <main className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-lg">
+          <h1 className="text-3xl font-bold text-indigo-600 text-center mb-6">
+            Generador de Contraseñas
+          </h1>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 font-medium mb-2">Longitud: {length}</label>
+          <section className="mb-6">
+            <label className="block text-gray-700 font-medium mb-1">Longitud: {passwordLength}</label>
             <input
               type="range"
               min="6"
               max="50"
-              value={length}
-              onChange={(e) => setLength(e.target.value)}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              value={passwordLength}
+              onChange={(e) => setPasswordLength(Number(e.target.value))}
+              className="w-full accent-indigo-500"
             />
-          </div>
+          </section>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <section className="grid grid-cols-2 gap-4 mb-6 text-sm">
             <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={useUppercase}
-                onChange={() => setUseUppercase(!useUppercase)}
-                className="mr-2 h-5 w-5 text-indigo-600 rounded"
-              />
+              <input type="checkbox" checked={includeUppercase} onChange={() => setIncludeUppercase(!includeUppercase)} className="mr-2" />
               Mayúsculas
             </label>
             <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={useLowercase}
-                onChange={() => setUseLowercase(!useLowercase)}
-                className="mr-2 h-5 w-5 text-indigo-600 rounded"
-              />
+              <input type="checkbox" checked={includeLowercase} onChange={() => setIncludeLowercase(!includeLowercase)} className="mr-2" />
               Minúsculas
             </label>
             <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={useNumbers}
-                onChange={() => setUseNumbers(!useNumbers)}
-                className="mr-2 h-5 w-5 text-indigo-600 rounded"
-              />
+              <input type="checkbox" checked={includeNumbers} onChange={() => setIncludeNumbers(!includeNumbers)} className="mr-2" />
               Números
             </label>
             <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={useSymbols}
-                onChange={() => setUseSymbols(!useSymbols)}
-                className="mr-2 h-5 w-5 text-indigo-600 rounded"
-              />
+              <input type="checkbox" checked={includeSymbols} onChange={() => setIncludeSymbols(!includeSymbols)} className="mr-2" />
               Símbolos
             </label>
-          </div>
+          </section>
 
-          <button
-            onClick={generatePassword}
-            className="w-full bg-indigo-500 text-white py-3 rounded-lg hover:bg-indigo-600 transition-colors mb-4"
-          >
+          <button onClick={generatePassword} className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition mb-4">
             Generar Contraseña
           </button>
 
-          {password && (
-            <div className="mb-6">
+          {generatedPassword && (
+            <section className="mb-6">
               <div className="flex items-center justify-between p-3 bg-gray-100 rounded-lg">
-                <span className="text-gray-700 truncate flex-1">{password}</span>
-                <button
-                  onClick={copyToClipboard}
-                  className="ml-2 bg-indigo-200 text-indigo-800 px-3 py-1 rounded hover:bg-indigo-300 transition-colors"
-                >
+                <span className="text-gray-800 truncate flex-1">{generatedPassword}</span>
+                <button onClick={handleCopy} className="ml-2 bg-indigo-200 text-indigo-800 px-3 py-1 rounded hover:bg-indigo-300">
                   Copiar
                 </button>
               </div>
-              <div className="mt-2 text-sm">
+              <p className="mt-2 text-sm">
                 <span className="font-medium">Fuerza: </span>
-                <span
-                  className={
-                    passwordStrength === 'Fuerte'
-                      ? 'text-green-500'
-                      : passwordStrength === 'Media'
-                      ? 'text-yellow-500'
-                      : 'text-red-500'
-                  }
-                >
-                  {passwordStrength}
+                <span className={
+                  strength === 'Fuerte' ? 'text-green-500' :
+                  strength === 'Media' ? 'text-yellow-500' :
+                  'text-red-500'
+                }>
+                  {strength}
                 </span>
-              </div>
-              <div className="mt-4">
-                <input
-                  type="text"
-                  placeholder="Uso (ej. Correo, Banco)"
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <button
-                  onClick={savePassword}
-                  className="w-full mt-2 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors"
-                >
-                  Guardar Contraseña
-                </button>
-              </div>
-            </div>
+              </p>
+
+              <input
+                type="text"
+                placeholder="Uso (ej. Correo, Banco)"
+                value={usageNote}
+                onChange={(e) => setUsageNote(e.target.value)}
+                className="mt-4 w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+
+              <button onClick={handleSave} className="w-full mt-2 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition">
+                Guardar Contraseña
+              </button>
+            </section>
           )}
 
-          <div className="mt-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Contraseñas Guardadas</h2>
-              <button
-                onClick={clearAllPasswords}
-                className="text-sm bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                disabled={savedPasswords.length === 0}
-              >
+          <section className="mt-8">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-semibold text-gray-800">Contraseñas Guardadas</h2>
+              <button onClick={clearAll} disabled={savedList.length === 0} className="text-sm bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 disabled:bg-gray-300">
                 Limpiar Todo
               </button>
             </div>
-            {savedPasswords.length === 0 ? (
+
+            {savedList.length === 0 ? (
               <p className="text-gray-500">No hay contraseñas guardadas.</p>
             ) : (
               <ul className="space-y-3">
-                {savedPasswords.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
+                {savedList.map(({ id, password, note }) => (
+                  <li key={id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex-1">
-                      <p className="font-medium text-gray-800">{item.purpose}</p>
-                      <p className="text-sm text-gray-600 truncate">
-                        {showPasswords[item.id] ? item.password : '••••••••'}
-                      </p>
+                      <p className="font-medium text-gray-800">{note}</p>
+                      <p className="text-sm text-gray-600">{visibilityMap[id] ? password : '••••••••'}</p>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => togglePasswordVisibility(item.id)}
-                        className="text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {showPasswords[item.id] ? 'Ocultar' : 'Mostrar'}
+                      <button onClick={() => toggleVisibility(id)} className="text-gray-500 hover:text-gray-700">
+                        {visibilityMap[id] ? 'Ocultar' : 'Mostrar'}
                       </button>
-                      <button
-                        onClick={() => deletePassword(item.id)}
-                        className="text-red-500 hover:text-red-700 transition-colors"
-                      >
+                      <button onClick={() => deleteOne(id)} className="text-red-500 hover:text-red-700">
                         Eliminar
                       </button>
                     </div>
@@ -255,8 +206,8 @@
                 ))}
               </ul>
             )}
-          </div>
-        </div>
+          </section>
+        </main>
       );
     }
 
